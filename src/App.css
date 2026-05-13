@@ -2,13 +2,34 @@
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  cursor: none;
+}
+
+.app-header-toolbar {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.app-connect-brokerage {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
 }
 
 .app-header {
   position: relative;
   background: #3d3d3d;
   color: #fff;
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 1rem 1.5rem 1.5rem;
 }
 
 .app-title {
@@ -21,9 +42,6 @@
 }
 
 .app-subtitle {
-  position: absolute;
-  top: 1rem;
-  right: 1.5rem;
   margin: 0;
   font-size: 0.75rem;
   font-weight: 400;
@@ -31,6 +49,9 @@
   text-align: right;
   max-width: 20rem;
   line-height: 1.35;
+  flex: 0 1 auto;
+  align-self: center;
+  pointer-events: auto;
 }
 
 .app-grid {
@@ -63,15 +84,27 @@
     grid-template-columns: 1fr;
   }
 
+  .app-header-toolbar {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0 -0.25rem 0.5rem;
+    padding: 0 0.25rem;
+    pointer-events: auto;
+  }
+
+  .app-connect-brokerage {
+    align-self: flex-start;
+  }
+
   .app-title {
-    padding: 2.5rem 0 0;
+    padding: 0;
   }
 
   .app-subtitle {
-    position: static;
     text-align: center;
     max-width: none;
-    margin-top: 0.5rem;
+    align-self: stretch;
     padding: 0 0.5rem;
   }
 }
