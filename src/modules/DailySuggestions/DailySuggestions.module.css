@@ -1,0 +1,110 @@
+.root {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1rem 1.15rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+}
+
+.title {
+  margin: 0 0 0.85rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  padding: 0 0.35rem 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.colQty {
+  text-align: center;
+  min-width: 3rem;
+}
+
+.colPri {
+  text-align: right;
+  min-width: 4rem;
+}
+
+.row {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.12);
+}
+
+.row:focus-visible {
+  outline: 2px solid #333;
+  outline-offset: 2px;
+}
+
+.rowInner {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.row--buy .rowInner {
+  background: #22c55e;
+}
+
+.row--sell .rowInner {
+  background: #ef4444;
+  color: #fff;
+}
+
+.row--neutral .rowInner {
+  background: #94a3b8;
+  color: #fff;
+}
+
+.action {
+  min-width: 0;
+}
+
+.qty {
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  min-width: 3rem;
+}
+
+.priority {
+  text-align: right;
+  min-width: 4rem;
+  font-size: 0.8rem;
+  opacity: 0.95;
+}
+
+.row--sell .priority,
+.row--neutral .priority {
+  opacity: 0.9;
+}
