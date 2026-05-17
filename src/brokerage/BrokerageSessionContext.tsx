@@ -45,7 +45,7 @@ export function BrokerageSessionProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([refreshSession(), pingAlpacaSnapshot()]);
+    await refreshSession();
   }, [refreshSession]);
 
   const refreshData = useCallback(async () => {
@@ -69,8 +69,8 @@ export function BrokerageSessionProvider({ children }: { children: ReactNode }) 
     if (p.has("alpaca_error") || p.has("alpaca_connected")) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-    void refreshAll();
-  }, [refreshAll]);
+    void refreshSession();
+  }, [refreshSession]);
 
   const value = useMemo(
     () => ({

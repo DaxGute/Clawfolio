@@ -9,7 +9,11 @@
     "dev:server": "tsx watch server/index.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "start:server": "tsx server/index.ts"
+    "openclaw": "./scripts/openclaw-clawfolio",
+    "openclaw:chat": "./scripts/openclaw-clawfolio tui",
+    "start:server": "tsx server/index.ts",
+    "alpaca:pull": "tsx server/src/scripts/pullAlpacaSnapshot.ts",
+    "clawfolio:run": "tsx server/src/jobs/runDailyClawfolio.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",

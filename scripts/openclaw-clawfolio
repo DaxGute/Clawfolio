@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+export OPENCLAW_CONFIG_PATH="${PROJECT_ROOT}/openclaw/config/openclaw.clawfolio.json"
+export OPENCLAW_STATE_DIR="${PROJECT_ROOT}/openclaw/state"
+export OPENCLAW_WORKSPACE="${PROJECT_ROOT}/openclaw/workspace"
+
+GLOBAL_AGENT_DIR="${HOME}/.openclaw/agents/main/agent"
+PROJECT_AGENT_DIR="${OPENCLAW_STATE_DIR}/agents/main/agent"
+
+mkdir -p \
+  "${OPENCLAW_STATE_DIR}" \
+  "${PROJECT_ROOT}/reports" \
+  "${PROJECT_ROOT}/data/alpaca" \
+  "${OPENCLAW_WORKSPACE}" \
+  "${PROJECT_AGENT_DIR}"
+
+echo "openclaw-clawfolio: OPENAI_API_KEY is $([[ -n "${OPENAI_API_KEY:-}" ]] && echo set || echo unset)"
+
+# Hard-disable Platform API auth: agent turns use ChatGPT/Codex OAuth only.
+unset OPENAI_API_KEY OPENAI_API_KEYS OPENAI_BASE_URL OPENAI_ORG_ID OPENAI_PROJECT CODEX_API_KEY 2>/dev/null || true
+
+# Never symlink project .env into OPENCLAW_STATE_DIR — OpenClaw loads that file at startup.
+rm -f "${OPENCLAW_STATE_DIR}/.env"
+
+# Drop project-local auth copies that might embed API keys (keep clean symlinks to global OAuth).
+for stale_auth in \
+  "${OPENCLAW_STATE_DIR}/auth-profiles.json" \
+  "${OPENCLAW_STATE_DIR}/auth-state.json" \
+  "${OPENCLAW_STATE_DIR}/models.json"; do
+  if [[ -e "${stale_auth}" && ! -L "${stale_auth}" ]]; then
+    rm -f "${stale_auth}"
+  fi
+done
+
+auth_has_api_key_profile() {
+  local file="$1"
+  [[ -f "${file}" ]] || return 1
+  python3 - "${file}" <<'PY' 2>/dev/null
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    data = json.load(f)
+profiles = data.get("profiles") or {}
+sys.exit(0 if any(
+    (p or {}).get("type") == "api_key" or (p or {}).get("key") or (p or {}).get("apiKey")
+    for p in profiles.values()
+) else 1)
+PY
+}
+
+# Reuse the authenticated global OpenAI/ChatGPT OAuth store (no API key required).
+if [[ -f "${GLOBAL_AGENT_DIR}/auth-profiles.json" ]]; then
+  if auth_has_api_key_profile "${GLOBAL_AGENT_DIR}/auth-profiles.json"; then
+    echo "openclaw-clawfolio: global auth-profiles.json contains API-key profiles; run: openclaw models auth login --provider openai-codex" >&2
+    exit 1
+  fi
+  for auth_file in auth-profiles.json auth-state.json models.json; do
+    project_file="${PROJECT_AGENT_DIR}/${auth_file}"
+    if [[ -e "${project_file}" && ! -L "${project_file}" ]]; then
+      rm -f "${project_file}"
+    fi
+    if [[ -f "${GLOBAL_AGENT_DIR}/${auth_file}" ]]; then
+      ln -sfn "${GLOBAL_AGENT_DIR}/${auth_file}" "${project_file}"
+    fi
+  done
+fi
+
+cd "${PROJECT_ROOT}"
+
+exec openclaw "$@"

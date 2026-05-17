@@ -88,7 +88,72 @@
 }
 
 .action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   min-width: 0;
+}
+
+.actionLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailsAffordance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: inherit;
+  background: rgb(0 0 0 / 0.14);
+  opacity: 0.82;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+
+.row:hover .detailsAffordance,
+.row:focus-visible .detailsAffordance {
+  opacity: 1;
+  background: rgb(0 0 0 / 0.22);
+}
+
+.row--sell .detailsAffordance {
+  background: rgb(0 0 0 / 0.18);
+}
+
+.detailsIcon {
+  display: block;
+  opacity: 0.9;
+}
+
+.detailsText {
+  line-height: 1;
+}
+
+@media (max-width: 420px) {
+  .detailsText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .detailsAffordance {
+    padding: 0.2rem;
+  }
 }
 
 .qty {
@@ -107,4 +172,17 @@
 .row--sell .priority,
 .row--neutral .priority {
   opacity: 0.9;
+}
+
+.loading {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: #666;
+}
+
+.pendingRun {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: #888;
+  font-style: italic;
 }

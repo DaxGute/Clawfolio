@@ -1,9 +1,14 @@
 import { useEffect } from "react";
 import { BrokerageConnectDropdown } from "../components/BrokerageConnectDropdown/BrokerageConnectDropdown";
+import { useClawfolioReport } from "../context/ClawfolioReportContext";
+import { formatLastRun } from "../lib/lastRun";
 import { PortfolioHealth } from "../modules/PortfolioHealth/PortfolioHealth";
 import { GrowthGraph } from "../modules/GrowthGraph/GrowthGraph";
 import { DailySuggestions } from "../modules/DailySuggestions/DailySuggestions";
 import { InvestingPersonality } from "../modules/InvestingPersonality/InvestingPersonality";
+
+/** Set true when brokerage OAuth UI should appear in the header again. */
+const SHOW_BROKERAGE_CONNECT = false;
 
 function formatPortfolioTitle(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
@@ -14,7 +19,11 @@ function formatPortfolioTitle(date: Date) {
 }
 
 export function HomePage() {
-  const title = `${formatPortfolioTitle(new Date())} Portfolio`;
+  const { lastRunAt, isStaleRun, running } = useClawfolioReport();
+  const dateLabel = formatPortfolioTitle(new Date());
+  const portfolioSuffix = isStaleRun ? "*" : "";
+  const title = `${dateLabel} Portfolio${portfolioSuffix}`;
+  const lastRunLabel = running ? "Running…" : `Last run ${formatLastRun(lastRunAt)}`;
 
   useEffect(() => {
     document.title = title;
@@ -23,15 +32,17 @@ export function HomePage() {
   return (
     <>
       <header className="app-header">
-        <div className="app-header-toolbar">
-          <div className="app-connect-brokerage">
-            <BrokerageConnectDropdown />
+        {SHOW_BROKERAGE_CONNECT ? (
+          <div className="app-header-toolbar">
+            <div className="app-connect-brokerage">
+              <BrokerageConnectDropdown />
+            </div>
           </div>
-          <p className="app-subtitle">
-            Click on any of the suggestions or positions to get more context
-          </p>
-        </div>
+        ) : null}
         <h1 className="app-title">{title}</h1>
+        <p className="app-last-run" title={lastRunAt ?? undefined}>
+          {lastRunLabel}
+        </p>
       </header>
 
       <main className="app-grid">

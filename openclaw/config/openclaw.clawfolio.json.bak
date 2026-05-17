@@ -1,0 +1,106 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "/Users/daxtongutekunst/Desktop/Clawfolio/openclaw/workspace",
+      "models": {
+        "openai/gpt-5.5": {
+          "agentRuntime": {
+            "id": "codex"
+          }
+        }
+      },
+      "model": {
+        "primary": "openai/gpt-5.5"
+      }
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "cdae823557c611a5ebcbc3556e4d5b8473a80a8946414b7c"
+    },
+    "port": 18789,
+    "bind": "loopback",
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "controlUi": {
+      "allowInsecureAuth": true
+    },
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "contacts.add",
+        "calendar.add",
+        "reminders.add",
+        "sms.send",
+        "sms.search"
+      ]
+    }
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "tools": {
+    "profile": "coding",
+    "web": {
+      "search": {
+        "provider": "duckduckgo",
+        "enabled": true
+      }
+    }
+  },
+  "plugins": {
+    "entries": {
+      "openai": {
+        "enabled": true
+      },
+      "codex": {
+        "enabled": true
+      },
+      "telegram": {
+        "enabled": true
+      },
+      "duckduckgo": {
+        "enabled": true
+      }
+    }
+  },
+  "auth": {
+    "profiles": {
+      "openai-codex:daxtongute@gmail.com": {
+        "provider": "openai-codex",
+        "mode": "oauth",
+        "email": "daxtongute@gmail.com"
+      }
+    },
+    "order": {
+      "openai": ["openai-codex:daxtongute@gmail.com"]
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "groups": {
+        "*": {
+          "requireMention": true
+        }
+      },
+      "botToken": "8904069800:AAHrJ5kwwxmS0GoaIlmWZze_E7zozmAEJnc"
+    }
+  },
+  "wizard": {
+    "lastRunAt": "2026-05-15T20:09:14.835Z",
+    "lastRunVersion": "2026.5.12",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.5.12",
+    "lastTouchedAt": "2026-05-15T20:09:14.992Z"
+  }
+}

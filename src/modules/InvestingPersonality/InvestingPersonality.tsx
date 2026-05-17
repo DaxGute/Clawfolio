@@ -1,5 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { fetchInvestorProfile, saveInvestorProfile } from "../../api/clawfolioClient";
+import type { ClawfolioInvestorProfile } from "../../types/clawfolio";
 import styles from "./InvestingPersonality.module.css";
 
 type SliderValue = 0 | 1 | 2 | 3;
@@ -13,40 +15,45 @@ const labels: Record<
   frequency: ["Day Trader", "Swing Trader", "Position Trader", "Long-Term Holder"],
 };
 
+function indexForOption<T extends readonly string[]>(options: T, value: string): SliderValue {
+  const i = options.findIndex((option) => option === value);
+  return (i >= 0 ? i : 0) as SliderValue;
+}
+
 const philosophyEntries: { term: string; description: string }[] = [
   {
     term: "Value",
     description:
-      "Seeks undervalued assets believed to be trading below their intrinsic worth.",
+      "Seeks undervalued assets believed to be below intrinsic worth, so Clawfolio should reward margin of safety and be skeptical of expensive momentum.",
   },
   {
     term: "Growth",
-    description: "Focuses on companies or sectors expected to expand rapidly over time.",
+    description: "Focuses on companies or sectors expected to expand rapidly, so Clawfolio should tolerate richer valuations when growth evidence is strong.",
   },
   {
     term: "Momentum",
     description:
-      "Favors assets demonstrating strong price trends and sustained market strength.",
+      "Favors strong price trends and market strength, so Clawfolio should weigh recent relative performance and catalyst follow-through more heavily.",
   },
   {
     term: "Quality",
     description:
-      "Prioritizes financially resilient businesses with strong fundamentals and competitive advantages.",
+      "Prioritizes resilient businesses with strong fundamentals, so Clawfolio should prefer durable earnings, balance sheet strength, and defensible advantages.",
   },
   {
     term: "Income",
     description:
-      "Targets investments that generate consistent cash flow through dividends, yield, or fixed income.",
+      "Targets consistent cash flow, so Clawfolio should care more about yield durability, payout risk, and downside protection.",
   },
   {
     term: "Macro",
     description:
-      "Builds positions around economic trends, interest rates, policy shifts, and global market conditions.",
+      "Builds around economic trends, rates, policy, and global conditions, so Clawfolio should connect company suggestions to broader market regimes.",
   },
   {
     term: "Index",
     description:
-      "Emphasizes diversified, passive exposure designed to track broader market performance.",
+      "Emphasizes diversified passive exposure, so Clawfolio should be more skeptical of concentrated single-name orders unless evidence is unusually strong.",
   },
 ];
 
@@ -69,22 +76,22 @@ const glossarySections: {
       {
         term: "Day Trader",
         description:
-          "Executes trades within the same day, focusing on short-term price movements and market momentum.",
+          "Executes trades within the same day, so Clawfolio should favor tighter entries, smaller notional sizing, and catalysts that matter immediately.",
       },
       {
         term: "Swing Trader",
         description:
-          "Holds positions for days to weeks to capture medium-term trends and market swings.",
+          "Holds positions for days to weeks, so Clawfolio should emphasize near-term trend strength, catalysts, and exit discipline.",
       },
       {
         term: "Position Trader",
         description:
-          "Takes longer-duration positions based on broader market trends, typically holding for weeks or months.",
+          "Takes longer-duration positions over weeks or months, so Clawfolio should weigh broader trend quality and avoid overreacting to daily noise.",
       },
       {
         term: "Long-Term Holder",
         description:
-          "Invests with minimal trading activity, prioritizing long-term growth and compounding over years.",
+          "Invests with minimal trading activity, so Clawfolio should require stronger evidence before selling and size buys around durable theses.",
       },
     ],
   },
@@ -95,22 +102,22 @@ const glossarySections: {
       {
         term: "Short-Term",
         description:
-          "Focused on returns over the near future, typically ranging from months to a few years.",
+          "Focused on near-future returns, so stale momentum, drawdowns, or missing catalysts should weigh more heavily.",
       },
       {
         term: "Medium-Term",
         description:
-          "Balances growth and flexibility with investment goals spanning several years.",
+          "Balances growth and flexibility over several years, keeping Clawfolio open to both tactical buys and risk-driven sells.",
       },
       {
         term: "Long-Term",
         description:
-          "Built around sustained growth and compounding over long multi-year periods.",
+          "Built around multi-year compounding, so Clawfolio should tolerate more volatility when the longer thesis still looks intact.",
       },
       {
         term: "Generational",
         description:
-          "Designed for preserving and growing wealth across decades or future generations.",
+          "Designed for decades-long compounding, so Clawfolio should be reluctant to sell quality assets without a major thesis break.",
       },
     ],
   },
@@ -121,7 +128,7 @@ const glossarySections: {
       {
         term: "Conservative",
         description:
-          "Prioritizes stability and downside protection, even if it limits potential returns.",
+          "Prioritizes stability and downside protection, causing Clawfolio to sell earlier on losses or concentration and size buys smaller.",
       },
       {
         term: "Balanced",
@@ -129,12 +136,12 @@ const glossarySections: {
       },
       {
         term: "Aggressive",
-        description: "Accepts higher volatility in pursuit of stronger long-term returns.",
+        description: "Accepts higher volatility for stronger returns, allowing wider drawdown tolerance and larger buy sizing.",
       },
       {
         term: "Speculative",
         description:
-          "Targets outsized gains through high-risk opportunities with significant uncertainty and volatility.",
+          "Targets outsized gains with high uncertainty, so Clawfolio may tolerate sharp volatility but should flag thesis and sizing risk clearly.",
       },
     ],
   },
@@ -469,6 +476,8 @@ export function InvestingPersonality() {
   const [sectorBlacklistTags, setSectorBlacklistTags] = useState<string[]>([]);
   const [sectorBlacklistDraft, setSectorBlacklistDraft] = useState("");
   const [sectorsGuideOpen, setSectorsGuideOpen] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileStatus, setProfileStatus] = useState("Loading profile...");
 
   const titleId = useId();
   const dialogId = useId();
@@ -476,6 +485,66 @@ export function InvestingPersonality() {
   const sectorsGuideDialogId = useId();
   const sectorFocusInputId = useId();
   const sectorBlacklistInputId = useId();
+  const skipNextProfileSave = useRef(true);
+
+  const profile: ClawfolioInvestorProfile = {
+    timeHorizon: labels.horizon[horizon] as ClawfolioInvestorProfile["timeHorizon"],
+    riskAppetite: labels.risk[risk] as ClawfolioInvestorProfile["riskAppetite"],
+    tradingFrequency: labels.frequency[frequency] as ClawfolioInvestorProfile["tradingFrequency"],
+    philosophy: philosophy as ClawfolioInvestorProfile["philosophy"],
+    sectorFocus: sectorFocusTags,
+    sectorBlacklist: sectorBlacklistTags,
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchInvestorProfile()
+      .then((next) => {
+        if (cancelled) return;
+        setHorizon(indexForOption(labels.horizon, next.timeHorizon));
+        setRisk(indexForOption(labels.risk, next.riskAppetite));
+        setFrequency(indexForOption(labels.frequency, next.tradingFrequency));
+        setPhilosophy(next.philosophy);
+        setSectorFocusTags(next.sectorFocus);
+        setSectorBlacklistTags(next.sectorBlacklist);
+        skipNextProfileSave.current = true;
+        setProfileLoaded(true);
+        setProfileStatus("Profile drives evaluation");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setProfileLoaded(true);
+        setProfileStatus(err instanceof Error ? err.message : "Could not load profile");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!profileLoaded) return;
+    if (skipNextProfileSave.current) {
+      skipNextProfileSave.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setProfileStatus("Saving profile...");
+      void saveInvestorProfile(profile)
+        .then(() => setProfileStatus("Profile drives evaluation"))
+        .catch((err) => {
+          setProfileStatus(err instanceof Error ? err.message : "Could not save profile");
+        });
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [
+    profileLoaded,
+    profile.timeHorizon,
+    profile.riskAppetite,
+    profile.tradingFrequency,
+    profile.philosophy,
+    profile.sectorFocus.join("|"),
+    profile.sectorBlacklist.join("|"),
+  ]);
 
   const addFocusTag = (raw: string) => {
     const t = raw.trim();
@@ -512,7 +581,10 @@ export function InvestingPersonality() {
 
   return (
     <div className={styles.root}>
-      <h2 className={styles.title}>Investing Personality</h2>
+      <div className={styles.titleRow}>
+        <h2 className={styles.title}>Investing Personality</h2>
+        <span className={styles.profileStatus}>{profileStatus}</span>
+      </div>
 
       <SliderRow
         label="Time Horizon"

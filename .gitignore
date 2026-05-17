@@ -5,3 +5,12 @@ dist
 .env
 .env.*
 !.env.example
+openclaw/workspace/memory/
+openclaw/workspace/.openclaw/
+openclaw/state/
+openclaw/config/openclaw.clawfolio.json
+openclaw/config/*secret*
+openclaw/config/*token*
+reports/
+data/
+data/alpaca/

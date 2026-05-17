@@ -41,6 +41,15 @@
   padding: 0 12rem;
 }
 
+.app-last-run {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 400;
+  text-align: center;
+  opacity: 0.72;
+  letter-spacing: 0.01em;
+}
+
 .app-subtitle {
   margin: 0;
   font-size: 0.75rem;
@@ -79,6 +88,96 @@
   gap: 1rem;
 }
 
+.app-run-report {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 90;
+  min-width: 5.5rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem 0.72rem;
+  border: 1px solid rgb(0 0 0 / 0.16);
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.22);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.app-run-report:hover:not(:disabled) {
+  background: #2a2a2a;
+}
+
+.app-run-report:focus-visible {
+  outline: 2px solid #f5e000;
+  outline-offset: 3px;
+}
+
+.app-run-report:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.app-run-report__label {
+  display: inline-block;
+  min-width: 3.4rem;
+  text-align: center;
+}
+
+.app-run-report__dot {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.app-run-report__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgb(255 255 255 / 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.app-run-report--loading .app-run-report__progress {
+  opacity: 1;
+}
+
+.app-run-report__progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 38%;
+  height: 100%;
+  background: #f5e000;
+  border-radius: 0 2px 2px 0;
+  transform: translateX(-100%);
+}
+
+.app-run-report--loading .app-run-report__progress-bar {
+  animation: app-run-progress-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes app-run-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(360%);
+  }
+}
+
 @media (max-width: 1024px) {
   .app-grid {
     grid-template-columns: 1fr;
@@ -106,5 +205,10 @@
     max-width: none;
     align-self: stretch;
     padding: 0 0.5rem;
+  }
+
+  .app-run-report {
+    right: 0.75rem;
+    bottom: 0.75rem;
   }
 }

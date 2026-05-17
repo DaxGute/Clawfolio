@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import session from "express-session";
 import { alpacaBrokerageRouter } from "./alpaca/brokerageRoutes";
+import { clawfolioRouter } from "./src/routes/clawfolioRoutes";
 
 const port = Number(process.env.PORT ?? 8787);
 
@@ -51,6 +52,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/brokerage/alpaca", alpacaBrokerageRouter);
+app.use("/api/clawfolio", clawfolioRouter);
 
 app.use(
   (

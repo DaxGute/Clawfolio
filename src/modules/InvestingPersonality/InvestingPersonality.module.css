@@ -15,6 +15,22 @@
   letter-spacing: -0.02em;
 }
 
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.profileStatus {
+  max-width: 9rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: right;
+  color: #64748b;
+}
+
 .sliderBlock {
   display: flex;
   flex-direction: column;
