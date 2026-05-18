@@ -7,6 +7,9 @@ import type {
 } from "../../types/clawfolio";
 import styles from "./SuggestionDetailsPopover.module.css";
 
+const GENERIC_NEWS_RELEVANCE =
+  "Current news context attached directly to this order suggestion.";
+
 type SuggestionDetailsPopoverProps = {
   suggestion: ClawfolioSuggestion;
   onClose: () => void;
@@ -42,6 +45,17 @@ function formatPublishedAt(value: string | null): string {
 
 function actionBadgeClass(action: ClawfolioTradeAction): string {
   return action === "BUY" ? styles.badgeBuy : styles.badgeSell;
+}
+
+function hasSpecificText(value: string | null | undefined): value is string {
+  return !!value && value.trim() !== "" && value.trim() !== GENERIC_NEWS_RELEVANCE;
+}
+
+function mergedArticleContext(item: ClawfolioLinkedNews): string | null {
+  if (hasSpecificText(item.articleContext)) return item.articleContext;
+  const parts = [item.symbolContext, item.relevanceToSuggestion ?? item.relevance]
+    .filter(hasSpecificText);
+  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 function OrderSection({ suggestion }: { suggestion: ClawfolioSuggestion }) {
@@ -108,7 +122,18 @@ function NewsSection({ items }: { items: ClawfolioLinkedNews[] }) {
       </h3>
       <ul className={styles.newsList}>
         {items.map((item, index) => (
-          <li key={`${item.title}-${index}`} className={styles.newsItem}>
+          <NewsItem key={`${item.title}-${index}`} item={item} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function NewsItem({ item }: { item: ClawfolioLinkedNews }) {
+  const articleContext = mergedArticleContext(item);
+
+  return (
+    <li className={styles.newsItem}>
             {item.url ? (
               <a
                 className={styles.newsTitle}
@@ -124,14 +149,23 @@ function NewsSection({ items }: { items: ClawfolioLinkedNews[] }) {
             <div className={styles.newsMeta}>
               {item.source ? <span>{item.source}</span> : null}
               <span>{formatPublishedAt(item.publishedAt)}</span>
+              {item.riskSignal ? <span>{item.riskSignal} signal</span> : null}
             </div>
-            {item.relevance ? (
-              <p className={styles.newsRelevance}>{item.relevance}</p>
+            {hasSpecificText(item.summary) ? (
+              <NewsContext label="Summary" value={item.summary} />
             ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
+            {articleContext ? (
+              <NewsContext label="Suggestion support" value={articleContext} />
+            ) : null}
+    </li>
+  );
+}
+
+function NewsContext({ label, value }: { label: string; value: string }) {
+  return (
+    <p className={styles.newsContext}>
+      <span className={styles.newsContextLabel}>{label}:</span> {value}
+    </p>
   );
 }
 
@@ -262,7 +296,7 @@ export function SuggestionDetailsPopover({
             )}
           </section>
 
-          <NewsSection items={suggestion.linkedNews ?? []} />
+          <NewsSection items={suggestion.newsContext ?? suggestion.linkedNews ?? []} />
 
           <section
             className={styles.section}

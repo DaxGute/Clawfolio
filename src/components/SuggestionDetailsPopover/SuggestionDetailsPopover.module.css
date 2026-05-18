@@ -249,11 +249,16 @@ a.newsTitle:hover {
   color: #a1a1aa;
 }
 
-.newsRelevance {
+.newsContext {
   margin: 0.35rem 0 0;
   font-size: 0.72rem;
   line-height: 1.4;
   color: #a1a1aa;
+}
+
+.newsContextLabel {
+  font-weight: 700;
+  color: #d4d4d8;
 }
 
 .sourceList {

@@ -7,15 +7,18 @@ import type {
   AlpacaPortfolioHistory,
   AlpacaPosition,
 } from "./alpacaTypes";
-import { AlpacaTradingClient } from "./alpacaClient";
-import { AlpacaOAuthBearerAuthProvider } from "./authProvider";
 import { AlpacaClientError, toPublicErrorPayload } from "./errors";
 import { mapAlpacaAccount } from "./mapAccount";
 import { exchangeAlpacaAuthorizationCode } from "./oauthToken";
 import { normalizeAlpacaPosition } from "./normalizePosition";
 import { alpacaSession } from "./sessionBridge";
 import {
-  inferModeFromBaseUrl,
+  defaultModeForUi,
+  getUserTrading,
+  markBrokerageSessionExpired,
+  saveSessionPromise,
+} from "./tradingContext";
+import {
   loadAlpacaOAuthAppConfig,
   loadAppOrigin,
   oauthAppConfigured,
@@ -31,36 +34,6 @@ function httpStatusFromAlpacaError(err: AlpacaClientError): number {
   if (err.code === "NETWORK") return 502;
   if (err.status >= 400 && err.status < 600) return err.status;
   return 502;
-}
-
-function getUserTrading(req: Request) {
-  const s = alpacaSession(req);
-  if (!s.alpacaAccessToken || !s.alpacaTradingBaseUrl) return null;
-  return {
-    trading: new AlpacaTradingClient(
-      s.alpacaTradingBaseUrl,
-      new AlpacaOAuthBearerAuthProvider(s.alpacaAccessToken),
-    ),
-    mode: inferModeFromBaseUrl(s.alpacaTradingBaseUrl) as AlpacaMode,
-  };
-}
-
-function defaultModeForUi(): AlpacaMode {
-  return loadAlpacaOAuthAppConfig()?.oauthEnv ?? "paper";
-}
-
-function saveSessionPromise(req: Request): Promise<void> {
-  return new Promise((resolve, reject) => {
-    req.session.save((err) => (err ? reject(err) : resolve()));
-  });
-}
-
-/** Clears Alpaca tokens and marks the session as expired (reconnect required). */
-function markBrokerageSessionExpired(req: Request) {
-  const s = alpacaSession(req);
-  delete s.alpacaAccessToken;
-  delete s.alpacaTradingBaseUrl;
-  s.alpacaSessionExpired = true;
 }
 
 export const alpacaBrokerageRouter = Router();

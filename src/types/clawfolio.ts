@@ -15,6 +15,11 @@ export type ClawfolioLinkedNews = {
   url: string | null;
   source: string;
   publishedAt: string | null;
+  summary?: string;
+  symbolContext?: string;
+  relevanceToSuggestion?: string;
+  articleContext?: string;
+  riskSignal?: "positive" | "negative" | "mixed" | "neutral";
   relevance: string;
 };
 
@@ -36,10 +41,27 @@ export type ClawfolioInvestorProfile = {
   sectorBlacklist: string[];
 };
 
-export type ClawfolioPortfolioHealth = {
-  score: number;
+export type ClawfolioConfidence = {
+  scorePct: number;
   label: string;
-  summary: string;
+  explanation: string;
+};
+
+export type ClawfolioPositionHealthRationale = {
+  oneSentenceRationale: string;
+  detailedRationale: string;
+  evidenceUsed: string[];
+  assumptions: string[];
+  primaryRisks: string[];
+  invalidationTriggers: string[];
+};
+
+export type ClawfolioPositionHealth = {
+  scorePct: number;
+  label: string;
+  rationale: ClawfolioPositionHealthRationale;
+  confidence: ClawfolioConfidence;
+  linkedSources: string[];
 };
 
 export type ClawfolioPositionReport = {
@@ -51,6 +73,7 @@ export type ClawfolioPositionReport = {
   unrealizedPLPercent: number;
   healthScore: number;
   healthLabel: string;
+  health: ClawfolioPositionHealth;
   recommendation: ClawfolioTradeAction | null;
   confidence: number;
   positiveDrivers: string[];
@@ -66,6 +89,7 @@ export type ClawfolioSuggestion = {
   rationale: string;
   riskNote: string;
   linkedNews: ClawfolioLinkedNews[];
+  newsContext?: ClawfolioLinkedNews[];
   whatWouldChange: string;
   sources: string[];
 };
@@ -77,7 +101,6 @@ export type ClawfolioDailyReport = {
   sourceSnapshot: string;
   reportPrompt: ClawfolioReportPrompt;
   investorProfile: ClawfolioInvestorProfile;
-  portfolioHealth: ClawfolioPortfolioHealth;
   positions: ClawfolioPositionReport[];
   suggestions: ClawfolioSuggestion[];
   warnings: string[];

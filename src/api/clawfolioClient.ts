@@ -5,6 +5,8 @@ import type {
   ClawfolioRunResponse,
 } from "../types/clawfolio";
 
+export const CLAWFOLIO_PROFILE_DRAFT_KEY = "clawfolio.investorProfileDraft";
+
 async function parseJson<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok) {
@@ -24,10 +26,19 @@ export async function runClawfolioDaily(
   force = false,
 ): Promise<ClawfolioRunResponse> {
   const q = force ? "?force=true" : "";
+  const profileDraft = window.localStorage.getItem(CLAWFOLIO_PROFILE_DRAFT_KEY);
+  let profile: ClawfolioInvestorProfile | undefined;
+  if (profileDraft) {
+    try {
+      profile = JSON.parse(profileDraft) as ClawfolioInvestorProfile;
+    } catch {
+      window.localStorage.removeItem(CLAWFOLIO_PROFILE_DRAFT_KEY);
+    }
+  }
   const res = await fetch(`/api/clawfolio/run${q}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ force }),
+    body: JSON.stringify({ force, profile }),
   });
   return parseJson<ClawfolioRunResponse>(res);
 }

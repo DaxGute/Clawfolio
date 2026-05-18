@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { SuggestionDetailsPopover } from "../../components/SuggestionDetailsPopover/SuggestionDetailsPopover";
 import { useClawfolioReport } from "../../context/ClawfolioReportContext";
 import type { ClawfolioSuggestion, ClawfolioTradeAction } from "../../types/clawfolio";
@@ -8,40 +8,16 @@ function toneForAction(action: ClawfolioTradeAction): "buy" | "sell" {
   return action === "BUY" ? "buy" : "sell";
 }
 
-function priorityLabel(confidence: number): string {
-  if (confidence >= 75) return "High";
-  if (confidence >= 55) return "Med";
-  return "Low";
-}
-
 function suggestionKey(s: ClawfolioSuggestion): string {
   return `${s.symbol}-${s.action}-${s.order.limitPrice}`;
 }
 
-function DetailsIcon() {
-  return (
-    <svg
-      className={styles.detailsIcon}
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
-      <path
-        d="M12 11v5M12 8h.01"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 export function DailySuggestions() {
   const { report, loading, running, needsRunToday } = useClawfolioReport();
-  const items = report?.suggestions ?? [];
+  const items = useMemo(() => {
+    const suggestions = report?.suggestions ?? [];
+    return [...suggestions].sort((a, b) => b.confidence - a.confidence);
+  }, [report?.suggestions]);
   const count = items.length;
   const [selected, setSelected] = useState<ClawfolioSuggestion | null>(null);
 
@@ -49,15 +25,17 @@ export function DailySuggestions() {
 
   return (
     <div className={styles.root}>
-      <h2 className={styles.title}>
-        Daily Suggestions ({loading || running ? "…" : count})
-      </h2>
+      <div className={styles.titleRow}>
+        <h2 className={styles.title}>
+          Daily Suggestions ({loading || running ? "…" : count})
+        </h2>
+        <p className={styles.titleHint}>Click a row to pull up the description</p>
+      </div>
 
       <div className={styles.list}>
         <div className={styles.headerRow}>
           <span>Action</span>
           <span className={styles.colQty}>Conf</span>
-          <span className={styles.colPri}>Priority</span>
         </div>
 
         {running && items.length === 0 ? (
@@ -84,17 +62,8 @@ export function DailySuggestions() {
               aria-label={`View details for ${label}`}
             >
               <span className={styles.rowInner}>
-                <span className={styles.action}>
-                  <span className={styles.actionLabel}>{label}</span>
-                  <span className={styles.detailsAffordance}>
-                    <DetailsIcon />
-                    <span className={styles.detailsText}>Details</span>
-                  </span>
-                </span>
+                <span className={styles.action}>{label}</span>
                 <span className={styles.qty}>{s.confidence}%</span>
-                <span className={styles.priority}>
-                  {priorityLabel(s.confidence)}
-                </span>
               </span>
             </button>
           );

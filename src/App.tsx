@@ -5,6 +5,7 @@ import {
   useClawfolioReport,
 } from "./context/ClawfolioReportContext";
 import { LaserPointerCursor } from "./components/LaserPointerCursor/LaserPointerCursor";
+import { LiquidSwirlBackground } from "./components/LiquidSwirlBackground/LiquidSwirlBackground";
 import "./App.css";
 
 function RunReportButton() {
@@ -42,9 +43,12 @@ export function App() {
     <BrokerageSessionProvider>
       <ClawfolioReportProvider>
         <div className="app">
-          <LaserPointerCursor />
-          <HomePage />
-          <RunReportButton />
+          <LiquidSwirlBackground />
+          <div className="app-front">
+            <LaserPointerCursor />
+            <HomePage />
+            <RunReportButton />
+          </div>
         </div>
       </ClawfolioReportProvider>
     </BrokerageSessionProvider>

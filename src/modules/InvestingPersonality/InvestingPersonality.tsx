@@ -1,6 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { fetchInvestorProfile, saveInvestorProfile } from "../../api/clawfolioClient";
+import {
+  CLAWFOLIO_PROFILE_DRAFT_KEY,
+  fetchInvestorProfile,
+  saveInvestorProfile,
+} from "../../api/clawfolioClient";
 import type { ClawfolioInvestorProfile } from "../../types/clawfolio";
 import styles from "./InvestingPersonality.module.css";
 
@@ -353,6 +357,9 @@ function SectorsGuideDialog(props: {
   );
 }
 
+const TAG_ENTER_MS = 220;
+const TAG_EXIT_MS = 180;
+
 function SectorTagsField(props: {
   id: string;
   tags: string[];
@@ -362,6 +369,97 @@ function SectorTagsField(props: {
   onRemoveTag: (tag: string) => void;
   placeholder: string;
 }) {
+  const prevTagsRef = useRef(props.tags);
+  const skipEnterRef = useRef(true);
+  const [enteringTags, setEnteringTags] = useState<Set<string>>(() => new Set());
+  const [exitingTags, setExitingTags] = useState<Set<string>>(() => new Set());
+  const exitTimersRef = useRef<Map<string, number>>(new Map());
+
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  useEffect(() => {
+    const prev = prevTagsRef.current;
+    const added = props.tags.filter((tag) => !prev.includes(tag));
+    prevTagsRef.current = props.tags;
+
+    if (skipEnterRef.current || added.length === 0 || prefersReducedMotion) {
+      skipEnterRef.current = false;
+      return;
+    }
+
+    setEnteringTags((current) => {
+      const next = new Set(current);
+      for (const tag of added) next.add(tag);
+      return next;
+    });
+
+    const timer = window.setTimeout(() => {
+      setEnteringTags((current) => {
+        const next = new Set(current);
+        for (const tag of added) next.delete(tag);
+        return next;
+      });
+    }, TAG_ENTER_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [props.tags, prefersReducedMotion]);
+
+  useEffect(() => {
+    const timers = exitTimersRef.current;
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
+
+  const tagsToRender = (() => {
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    for (const tag of props.tags) {
+      if (seen.has(tag)) continue;
+      ordered.push(tag);
+      seen.add(tag);
+    }
+    for (const tag of exitingTags) {
+      if (seen.has(tag)) continue;
+      ordered.push(tag);
+      seen.add(tag);
+    }
+    return ordered;
+  })();
+
+  const finishExit = (tag: string) => {
+    setExitingTags((current) => {
+      if (!current.has(tag)) return current;
+      const next = new Set(current);
+      next.delete(tag);
+      return next;
+    });
+    props.onRemoveTag(tag);
+  };
+
+  const requestRemove = (tag: string) => {
+    if (exitingTags.has(tag)) return;
+    if (prefersReducedMotion) {
+      props.onRemoveTag(tag);
+      return;
+    }
+    setExitingTags((current) => new Set(current).add(tag));
+    const timer = window.setTimeout(() => {
+      exitTimersRef.current.delete(tag);
+      finishExit(tag);
+    }, TAG_EXIT_MS);
+    exitTimersRef.current.set(tag, timer);
+  };
+
+  const tagClassName = (tag: string) => {
+    if (exitingTags.has(tag)) return `${styles.tag} ${styles.tagExiting}`;
+    if (enteringTags.has(tag)) return `${styles.tag} ${styles.tagEntering}`;
+    return styles.tag;
+  };
+
   const commitDraft = () => {
     const next = props.draft.trim();
     if (!next) return;
@@ -371,14 +469,15 @@ function SectorTagsField(props: {
 
   return (
     <div className={styles.tagField}>
-      {props.tags.map((tag) => (
-        <span key={tag} className={styles.tag}>
+      {tagsToRender.map((tag) => (
+        <span key={tag} className={tagClassName(tag)}>
           {tag}
           <button
             type="button"
             className={styles.tagRemove}
-            onClick={() => props.onRemoveTag(tag)}
+            onClick={() => requestRemove(tag)}
             aria-label={`Remove ${tag}`}
+            disabled={exitingTags.has(tag)}
           >
             <span aria-hidden>×</span>
           </button>
@@ -398,7 +497,8 @@ function SectorTagsField(props: {
             return;
           }
           if (e.key === "Backspace" && props.draft === "" && props.tags.length > 0) {
-            props.onRemoveTag(props.tags[props.tags.length - 1]);
+            const last = props.tags[props.tags.length - 1];
+            if (last) requestRemove(last);
           }
         }}
       />
@@ -417,10 +517,18 @@ function SliderRow(props: {
   glossaryControlsId: string;
 }) {
   const id = useId();
+  const [dragging, setDragging] = useState(false);
 
   const trackVars = {
     "--thumb": "18px",
+    "--slider-pos": props.value,
   } as React.CSSProperties;
+
+  const setValueFromInput = (raw: string) => {
+    props.onChange(Number(raw) as SliderValue);
+  };
+
+  const endDrag = () => setDragging(false);
 
   return (
     <div className={styles.sliderBlock}>
@@ -432,27 +540,50 @@ function SliderRow(props: {
           controlsId={props.glossaryControlsId}
         />
       </div>
-      <div className={styles.trackWrap} style={trackVars}>
-        <input
-          id={id}
-          className={styles.range}
-          type="range"
-          min={0}
-          max={3}
-          step={1}
-          value={props.value}
-          onChange={(e) => props.onChange(Number(e.target.value) as SliderValue)}
-          aria-valuetext={props.options[props.value]}
-        />
+      <div
+        className={styles.trackWrap}
+        style={trackVars}
+        data-dragging={dragging ? "true" : "false"}
+      >
+        <div className={styles.trackLane}>
+          <div className={styles.trackRail} aria-hidden />
+          <div className={styles.trackFill} aria-hidden />
+          <input
+            id={id}
+            className={styles.range}
+            type="range"
+            min={0}
+            max={3}
+            step={1}
+            value={props.value}
+            onPointerDown={() => setDragging(true)}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onLostPointerCapture={endDrag}
+            onBlur={endDrag}
+            onInput={(e) => setValueFromInput(e.currentTarget.value)}
+            onChange={(e) => setValueFromInput(e.currentTarget.value)}
+            aria-valuetext={props.options[props.value]}
+          />
+        </div>
         <div className={styles.tickStrip} aria-hidden>
-          {props.options.map((option) => (
-            <span key={option} className={styles.tick} />
+          {props.options.map((option, index) => (
+            <span
+              key={option}
+              className={
+                index <= props.value
+                  ? `${styles.tick} ${styles.tickFilled}`
+                  : styles.tick
+              }
+              data-active={index === props.value ? "true" : "false"}
+            />
           ))}
         </div>
         <div className={styles.captionRow}>
           <div
             className={styles.thumbCaption}
             data-slot={props.value}
+            data-dragging={dragging ? "true" : "false"}
             aria-hidden
           >
             {props.options[props.value]}
@@ -468,7 +599,10 @@ export function InvestingPersonality() {
   const [risk, setRisk] = useState<SliderValue>(0);
   const [frequency, setFrequency] = useState<SliderValue>(2);
   const [philosophyOpen, setPhilosophyOpen] = useState(false);
+  const [philosophyMenuShown, setPhilosophyMenuShown] = useState(false);
+  const [philosophyMenuClosing, setPhilosophyMenuClosing] = useState(false);
   const [philosophy, setPhilosophy] = useState("Macro");
+  const philosophyMenuTimer = useRef<number | null>(null);
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   const [glossaryScrollTargetId, setGlossaryScrollTargetId] = useState<string | null>(null);
   const [sectorFocusTags, setSectorFocusTags] = useState<string[]>([]);
@@ -507,6 +641,7 @@ export function InvestingPersonality() {
         setPhilosophy(next.philosophy);
         setSectorFocusTags(next.sectorFocus);
         setSectorBlacklistTags(next.sectorBlacklist);
+        window.localStorage.setItem(CLAWFOLIO_PROFILE_DRAFT_KEY, JSON.stringify(next));
         skipNextProfileSave.current = true;
         setProfileLoaded(true);
         setProfileStatus("Profile drives evaluation");
@@ -523,6 +658,7 @@ export function InvestingPersonality() {
 
   useEffect(() => {
     if (!profileLoaded) return;
+    window.localStorage.setItem(CLAWFOLIO_PROFILE_DRAFT_KEY, JSON.stringify(profile));
     if (skipNextProfileSave.current) {
       skipNextProfileSave.current = false;
       return;
@@ -530,7 +666,7 @@ export function InvestingPersonality() {
     const timer = window.setTimeout(() => {
       setProfileStatus("Saving profile...");
       void saveInvestorProfile(profile)
-        .then(() => setProfileStatus("Profile drives evaluation"))
+        .then(() => setProfileStatus("Profile drives next run"))
         .catch((err) => {
           setProfileStatus(err instanceof Error ? err.message : "Could not save profile");
         });
@@ -579,11 +715,43 @@ export function InvestingPersonality() {
     setSectorsGuideOpen(true);
   };
 
+  const openPhilosophyMenu = () => {
+    if (philosophyMenuTimer.current) {
+      clearTimeout(philosophyMenuTimer.current);
+      philosophyMenuTimer.current = null;
+    }
+    setPhilosophyMenuClosing(false);
+    setPhilosophyMenuShown(true);
+    setPhilosophyOpen(true);
+  };
+
+  const closePhilosophyMenu = () => {
+    if (!philosophyMenuShown) return;
+    setPhilosophyOpen(false);
+    setPhilosophyMenuClosing(true);
+    philosophyMenuTimer.current = window.setTimeout(() => {
+      setPhilosophyMenuShown(false);
+      setPhilosophyMenuClosing(false);
+      philosophyMenuTimer.current = null;
+    }, 180);
+  };
+
+  const togglePhilosophyMenu = () => {
+    if (philosophyOpen) closePhilosophyMenu();
+    else openPhilosophyMenu();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (philosophyMenuTimer.current) clearTimeout(philosophyMenuTimer.current);
+    };
+  }, []);
+
   return (
     <div className={styles.root}>
       <div className={styles.titleRow}>
         <h2 className={styles.title}>Investing Personality</h2>
-        <span className={styles.profileStatus}>{profileStatus}</span>
+        <p className={styles.profileStatus}>{profileStatus}</p>
       </div>
 
       <SliderRow
@@ -646,17 +814,28 @@ export function InvestingPersonality() {
             type="button"
             className={styles.pillButton}
             aria-expanded={philosophyOpen}
-            onClick={() => setPhilosophyOpen((o) => !o)}
+            onClick={togglePhilosophyMenu}
           >
             {philosophy}
             <span className={styles.chev} aria-hidden>
               ›
             </span>
           </button>
-          {philosophyOpen && (
-            <ul className={styles.menu} role="listbox">
-              {philosophyEntries.map(({ term: opt }) => (
-                <li key={opt}>
+          {philosophyMenuShown && (
+            <ul
+              className={
+                philosophyMenuClosing
+                  ? `${styles.menu} ${styles.menuClosing}`
+                  : styles.menu
+              }
+              role="listbox"
+            >
+              {philosophyEntries.map(({ term: opt }, index) => (
+                <li
+                  key={opt}
+                  className={styles.menuRow}
+                  style={{ "--menu-i": index } as React.CSSProperties}
+                >
                   <button
                     type="button"
                     className={
@@ -666,7 +845,7 @@ export function InvestingPersonality() {
                     }
                     onClick={() => {
                       setPhilosophy(opt);
-                      setPhilosophyOpen(false);
+                      closePhilosophyMenu();
                     }}
                   >
                     {opt}

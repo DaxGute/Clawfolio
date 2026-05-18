@@ -14,11 +14,12 @@ import {
   persistClawfolioReport,
   readDailyReport,
 } from "../reports/persist";
-import type { ClawfolioDailyReport } from "../reports/types";
+import type { ClawfolioDailyReport, ClawfolioInvestorProfile } from "../reports/types";
 
 export type RunDailyClawfolioOptions = {
   force?: boolean;
   dateKey?: string;
+  investorProfile?: ClawfolioInvestorProfile;
 };
 
 export type RunDailyClawfolioResult = {
@@ -56,7 +57,7 @@ export async function runDailyClawfolio(
   log("info", "Running full Clawfolio pipeline", { dateKey, force: !!options.force });
 
   const { snapshot, paths } = await pullAndPersistAlpacaSnapshot();
-  const investorProfile = await readInvestorProfile();
+  const investorProfile = options.investorProfile ?? await readInvestorProfile();
   const snapshotPath = path.relative(
     process.cwd(),
     paths.dailySnapshotPath,
@@ -80,7 +81,7 @@ export async function runDailyClawfolio(
     latest: written.latestPath,
     daily: written.dailyPath,
     positions: report.positions.length,
-    portfolioScore: report.portfolioHealth.score,
+    suggestions: report.suggestions.length,
   });
 
   return { report, cached: false, dateKey };
@@ -119,7 +120,6 @@ async function main(): Promise<void> {
       ? `[clawfolio:run] ${result.cached ? "Returned existing" : "Generated"} report for ${result.dateKey}`
       : `[clawfolio:run] ${result.cached ? "Cached" : "Generated"} report for ${result.dateKey}`,
   );
-  console.log(`  portfolio health: ${result.report.portfolioHealth.score} (${result.report.portfolioHealth.label})`);
   console.log(`  positions: ${result.report.positions.length}`);
   console.log(`  suggestions: ${result.report.suggestions.length}`);
 }

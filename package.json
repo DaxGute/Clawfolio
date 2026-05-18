@@ -13,7 +13,8 @@
     "openclaw:chat": "./scripts/openclaw-clawfolio tui",
     "start:server": "tsx server/index.ts",
     "alpaca:pull": "tsx server/src/scripts/pullAlpacaSnapshot.ts",
-    "clawfolio:run": "tsx server/src/jobs/runDailyClawfolio.ts"
+    "clawfolio:run": "tsx server/src/jobs/runDailyClawfolio.ts",
+    "test": "tsx --test server/src/alpaca/resolveAlpacaReadOnlyClient.test.ts server/src/portfolio/portfolioRoutes.test.ts server/src/portfolio/periodReturns.test.ts server/src/portfolio/coverage.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",

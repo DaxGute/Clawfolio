@@ -5,7 +5,7 @@ import { CLAWFOLIO_REPORT_PROMPT } from "../reports/prompt";
 import type {
   ClawfolioDailyReport,
   ClawfolioInvestorProfile,
-  ClawfolioPortfolioHealth,
+  ClawfolioPositionHealth,
   ClawfolioPositionReport,
   ClawfolioTradeAction,
   ClawfolioSuggestion,
@@ -166,39 +166,77 @@ function buildDrivers(
   return { positive, negative };
 }
 
-function portfolioHealthFromPositions(
-  positions: ClawfolioPositionReport[],
-  equity: number,
-  cash: number,
-): ClawfolioPortfolioHealth {
-  if (positions.length === 0) {
-    const cashHeavy = equity > 0 && cash / equity >= 0.9;
-    return {
-      score: cashHeavy ? 62 : 50,
-      label: cashHeavy ? "Fair" : "Fair",
-      summary: cashHeavy
-        ? "Portfolio is mostly fiat; cash remains an allocation decision under the active investor profile."
-        : "No equity positions in the latest snapshot.",
-    };
+function confidenceLabel(score: number): string {
+  if (score >= 80) return "high";
+  if (score >= 60) return "medium";
+  return "low";
+}
+
+function buildPositionHealth(
+  pos: {
+    symbol: string;
+    qty: number;
+    marketValue: number;
+    allocationPercent: number;
+    unrealizedPL: number;
+    unrealizedPLPercent: number;
+  },
+  healthScore: number,
+  recommendation: ClawfolioTradeAction | null,
+  positiveDrivers: string[],
+  negativeDrivers: string[],
+  confidence: number,
+  sources: string[],
+  profile: ClawfolioInvestorProfile,
+): ClawfolioPositionHealth {
+  const evidenceUsed = [
+    `Alpaca position quantity: ${pos.qty}`,
+    `Market value: $${round2(pos.marketValue)}`,
+    `Portfolio weight: ${round1(pos.allocationPercent)}%`,
+    `Unrealized P/L: $${round2(pos.unrealizedPL)} (${round1(pos.unrealizedPLPercent)}%)`,
+    `Active profile: ${profileLabel(profile)}`,
+  ];
+
+  const primaryRisks = [...negativeDrivers];
+  if (primaryRisks.length === 0) {
+    primaryRisks.push("No position-specific negative driver was detected from the current Alpaca snapshot.");
   }
 
-  const totalMv = positions.reduce((s, p) => s + p.marketValue, 0);
-  const weighted =
-    totalMv > 0
-      ? positions.reduce((s, p) => s + p.healthScore * p.marketValue, 0) / totalMv
-      : positions.reduce((s, p) => s + p.healthScore, 0) / positions.length;
-
-  const score = clamp(Math.round(weighted), 0, 100);
-  const losers = positions.filter((p) => p.unrealizedPL < 0).length;
-  const winners = positions.filter((p) => p.unrealizedPL > 0).length;
-
-  let summary = `${positions.length} position${positions.length === 1 ? "" : "s"} tracked; `;
-  summary += `${winners} gaining, ${losers} losing.`;
-
   return {
-    score,
-    label: healthLabel(score),
-    summary,
+    scorePct: healthScore,
+    label: healthLabel(healthScore),
+    rationale: {
+      oneSentenceRationale:
+        `${pos.symbol} health is ${healthLabel(healthScore).toLowerCase()} because current P/L, allocation weight, and the active investor profile produce a ${healthScore}% score.`,
+      detailedRationale: [
+        positiveDrivers.join(" "),
+        negativeDrivers.length > 0
+          ? negativeDrivers.join(" ")
+          : "No material negative driver was identified from the current snapshot.",
+        recommendation
+          ? `The position also produces a ${recommendation} candidate under the current thresholds.`
+          : "The position does not currently cross BUY or SELL thresholds.",
+      ].join(" "),
+      evidenceUsed,
+      assumptions: [
+        "Alpaca snapshot values are treated as the source of truth for quantity, market value, cost-basis P/L, cash, and equity.",
+        "Health score is based on current snapshot metrics and active investor profile, not a guarantee of future performance.",
+        "News may refine emitted BUY/SELL suggestions, but position health remains transparent when no suggestion is emitted.",
+      ],
+      primaryRisks,
+      invalidationTriggers: [
+        "A materially different Alpaca snapshot changes quantity, market value, cost basis, or allocation weight.",
+        "New company, sector, macro, or earnings evidence changes the thesis.",
+        "The active investor profile changes risk appetite, time horizon, trading frequency, or philosophy.",
+      ],
+    },
+    confidence: {
+      scorePct: confidence,
+      label: confidenceLabel(confidence),
+      explanation:
+        `Confidence reflects data completeness, position size, allocation relevance, and whether the position crossed a BUY/SELL threshold.`,
+    },
+    linkedSources: sources,
   };
 }
 
@@ -323,6 +361,12 @@ export function runPortfolioModel(
       investorProfile,
     );
 
+    const confidence = confidenceForPosition(
+      { qty: p.qty, marketValue: p.marketValue, allocationPercent },
+      recommendation,
+    );
+    const sources = snapshot.source ? [`alpaca:${snapshot.source}`] : [];
+
     return {
       symbol: p.symbol,
       qty: p.qty,
@@ -332,14 +376,28 @@ export function runPortfolioModel(
       unrealizedPLPercent: round1(p.unrealizedPLPercent),
       healthScore,
       healthLabel: healthLabel(healthScore),
-      recommendation,
-      confidence: confidenceForPosition(
-        { qty: p.qty, marketValue: p.marketValue, allocationPercent },
+      health: buildPositionHealth(
+        {
+          symbol: p.symbol,
+          qty: p.qty,
+          marketValue: p.marketValue,
+          allocationPercent,
+          unrealizedPL: p.unrealizedPL,
+          unrealizedPLPercent: p.unrealizedPLPercent,
+        },
+        healthScore,
         recommendation,
+        positive,
+        negative,
+        confidence,
+        sources,
+        investorProfile,
       ),
+      recommendation,
+      confidence,
       positiveDrivers: positive,
       negativeDrivers: negative,
-      sources: snapshot.source ? [`alpaca:${snapshot.source}`] : [],
+      sources,
     };
   });
 
@@ -353,12 +411,6 @@ export function runPortfolioModel(
     );
   }
 
-  const portfolioHealth = portfolioHealthFromPositions(
-    positions,
-    snapshot.account.equity,
-    snapshot.account.cash,
-  );
-
   const suggestions = positions
     .map((p) => buildSuggestion(p, snapshot.account.cash, snapshot.account.equity, investorProfile))
     .filter((s): s is ClawfolioSuggestion => s !== null)
@@ -371,7 +423,6 @@ export function runPortfolioModel(
     sourceSnapshot,
     reportPrompt: CLAWFOLIO_REPORT_PROMPT,
     investorProfile,
-    portfolioHealth,
     positions,
     suggestions,
     warnings,

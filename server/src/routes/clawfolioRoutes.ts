@@ -80,9 +80,12 @@ clawfolioRouter.put("/profile", async (req, res) => {
 
 clawfolioRouter.post("/run", async (req, res) => {
   const force = parseForce(req.query.force) || parseForce(req.body?.force);
+  const investorProfile = req.body?.profile
+    ? normalizeInvestorProfile(req.body.profile)
+    : undefined;
 
   try {
-    const result = await runDailyClawfolio({ force });
+    const result = await runDailyClawfolio({ force, investorProfile });
     res.json({
       report: result.report,
       cached: result.cached,

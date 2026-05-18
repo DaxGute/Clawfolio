@@ -22,10 +22,6 @@ export function PortfolioHealth() {
     useClawfolioReport();
   const [query, setQuery] = useState("");
 
-  const healthScore = report?.portfolioHealth.score ?? null;
-  const healthLabel = report?.portfolioHealth.label ?? "—";
-  const summary = report?.portfolioHealth.summary ?? "";
-
   const rows = useMemo(() => {
     const positions = report?.positions ?? [];
     const q = query.trim().toLowerCase();
@@ -36,36 +32,27 @@ export function PortfolioHealth() {
       ticker: p.symbol,
       qty: String(p.qty),
       totalValue: formatUsd(p.marketValue),
-      health: `${p.healthScore}%`,
-      healthLabel: p.healthLabel,
+      health: `${p.health?.scorePct ?? p.healthScore}%`,
+      healthLabel: p.health?.label ?? p.healthLabel,
+      healthSummary: p.health?.rationale.oneSentenceRationale ?? "",
       recommendation: p.recommendation,
-      confidence: p.confidence,
+      confidence: p.health?.confidence.scorePct ?? p.confidence,
     }));
   }, [report, query]);
 
   return (
     <div className={styles.root}>
       <div className={styles.healthRow}>
-        <div
-          className={styles.healthBadge}
-          aria-label="Weighted portfolio health"
-        >
-          {loading || running ? (
-            <span className={styles.healthLoading}>…</span>
-          ) : (
-            <span className={styles.healthValue}>
-              {healthScore !== null ? `${healthScore}%` : "—"}
-            </span>
-          )}
-        </div>
         <div className={styles.healthLabelWrap}>
           <span className={styles.healthLabel}>
             {running
               ? "Running daily analysis…"
-              : `${healthLabel} · Weighted Portfolio Health`}
+              : "Position Health"}
           </span>
-          {!running && summary ? (
-            <span className={styles.healthSummary}>{summary}</span>
+          {!running && report?.positions.length ? (
+            <span className={styles.healthSummary}>
+              Health is scored per current position. No portfolio-level health score is emitted.
+            </span>
           ) : null}
           {!loading && !running && needsRunToday ? (
             <span className={styles.pendingRun}>
@@ -156,7 +143,10 @@ export function PortfolioHealth() {
               <tr
                 key={row.ticker}
                 className={i % 2 === 0 ? styles.rowAlt : undefined}
-                title={`${row.healthLabel} · ${row.confidence}% confidence`}
+                title={
+                  row.healthSummary ||
+                  `${row.healthLabel} · ${row.confidence}% confidence`
+                }
               >
                 <td>{row.ticker}</td>
                 <td>{row.qty}</td>

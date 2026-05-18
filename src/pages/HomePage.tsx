@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { MagneticTitle } from "../components/MagneticTitle/MagneticTitle";
 import { BrokerageConnectDropdown } from "../components/BrokerageConnectDropdown/BrokerageConnectDropdown";
 import { useClawfolioReport } from "../context/ClawfolioReportContext";
 import { formatLastRun } from "../lib/lastRun";
@@ -6,7 +7,6 @@ import { PortfolioHealth } from "../modules/PortfolioHealth/PortfolioHealth";
 import { GrowthGraph } from "../modules/GrowthGraph/GrowthGraph";
 import { DailySuggestions } from "../modules/DailySuggestions/DailySuggestions";
 import { InvestingPersonality } from "../modules/InvestingPersonality/InvestingPersonality";
-
 /** Set true when brokerage OAuth UI should appear in the header again. */
 const SHOW_BROKERAGE_CONNECT = false;
 
@@ -39,7 +39,7 @@ export function HomePage() {
             </div>
           </div>
         ) : null}
-        <h1 className="app-title">{title}</h1>
+        <MagneticTitle text={title} className="app-title" />
         <p className="app-last-run" title={lastRunAt ?? undefined}>
           {lastRunLabel}
         </p>
@@ -51,10 +51,10 @@ export function HomePage() {
         </section>
         <section className="app-col app-col--center">
           <GrowthGraph />
-          <DailySuggestions />
         </section>
         <section className="app-col app-col--right">
           <InvestingPersonality />
+          <DailySuggestions />
         </section>
       </main>
     </>

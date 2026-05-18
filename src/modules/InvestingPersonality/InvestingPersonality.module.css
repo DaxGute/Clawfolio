@@ -2,7 +2,10 @@
   background: #fff;
   border-radius: 12px;
   padding: 1rem 1rem 1.2rem;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 6px 18px rgb(0 0 0 / 0.1),
+    0 16px 40px rgb(0 0 0 / 0.08);
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -10,6 +13,7 @@
 
 .title {
   margin: 0;
+  min-width: 0;
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -17,16 +21,18 @@
 
 .titleRow {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
 .profileStatus {
-  max-width: 9rem;
+  margin: 0;
+  flex-shrink: 0;
   font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
   text-align: right;
   color: #64748b;
 }
@@ -78,17 +84,56 @@
 
 .trackWrap {
   --thumb: 18px;
+  --slider-pos: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.12rem;
   margin-top: 0.05rem;
 }
 
+.trackLane {
+  position: relative;
+  height: var(--thumb);
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+}
+
+.trackRail,
+.trackFill {
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  border-radius: 999px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.trackRail {
+  left: calc(var(--thumb) / 2);
+  right: calc(var(--thumb) / 2);
+  background: #ddd;
+}
+
+.trackFill {
+  left: calc(var(--thumb) / 2);
+  width: calc((100% - var(--thumb)) * var(--slider-pos) / 3);
+  background: linear-gradient(90deg, #6b6b6b 0%, #333 100%);
+  transition: width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.trackWrap[data-dragging="true"] .trackFill {
+  transition-duration: 0.1s;
+}
+
 .tickStrip {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
+  height: 10px;
+  min-height: 10px;
   padding: 0 calc(var(--thumb) / 2);
-  margin: -0.12rem 0 0;
+  margin: 0;
   pointer-events: none;
 }
 
@@ -96,8 +141,21 @@
   width: 2px;
   height: 8px;
   border-radius: 1px;
-  background: #9a9a9a;
+  background: #c8c8c8;
   flex-shrink: 0;
+  transform-origin: bottom center;
+  transition:
+    background 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tickFilled {
+  background: #888;
+}
+
+.tick[data-active="true"] {
+  background: #333;
+  transform: scale(1.35, 1.25);
 }
 
 .captionRow {
@@ -122,6 +180,15 @@
   line-height: 1.15;
   letter-spacing: 0.01em;
   color: #555;
+  transition:
+    left 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.18s ease;
+}
+
+.thumbCaption[data-dragging="true"] {
+  color: #222;
+  transition-duration: 0.12s, 0.12s, 0.12s;
 }
 
 /* Under left stop: grow right, capped at track end */
@@ -154,13 +221,20 @@
 }
 
 .range {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   width: 100%;
-  height: 6px;
+  height: 100%;
+  margin: 0;
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
-  margin: 0.35rem 0 0;
-  cursor: pointer;
+  cursor: grab;
+}
+
+.range:active {
+  cursor: grabbing;
 }
 
 .range:focus-visible {
@@ -171,7 +245,7 @@
 
 .range::-webkit-slider-runnable-track {
   height: 4px;
-  background: linear-gradient(to right, #ddd 0%, #ddd 100%);
+  background: transparent;
   border-radius: 999px;
 }
 
@@ -185,11 +259,21 @@
   background: #fff;
   border: 2px solid #333;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.trackWrap[data-dragging="true"] .range::-webkit-slider-thumb {
+  border-color: #111;
+  box-shadow:
+    0 2px 10px rgb(0 0 0 / 0.22),
+    0 0 0 4px rgb(51 51 51 / 0.1);
 }
 
 .range::-moz-range-track {
   height: 4px;
-  background: #ddd;
+  background: transparent;
   border-radius: 999px;
 }
 
@@ -200,6 +284,16 @@
   background: #fff;
   border: 2px solid #333;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.trackWrap[data-dragging="true"] .range::-moz-range-thumb {
+  border-color: #111;
+  box-shadow:
+    0 2px 10px rgb(0 0 0 / 0.22),
+    0 0 0 4px rgb(51 51 51 / 0.1);
 }
 
 .fieldBlock {
@@ -243,16 +337,33 @@
   font-size: 0.85rem;
   cursor: pointer;
   color: #222;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .pillButton:hover {
   background: #e2e2e2;
 }
 
+.pillButton[aria-expanded="true"] {
+  background: #e4e4e4;
+  border-color: #b8b8b8;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
+}
+
 .chev {
+  display: inline-block;
   font-size: 1.1rem;
   line-height: 1;
   opacity: 0.6;
+  transform-origin: center;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pillButton[aria-expanded="true"] .chev {
+  transform: rotate(90deg);
 }
 
 .menu {
@@ -268,6 +379,76 @@
   border: 1px solid #ddd;
   border-radius: 10px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  transform-origin: top center;
+  animation: philosophyMenuIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.menuClosing {
+  animation: philosophyMenuOut 0.18s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes philosophyMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes philosophyMenuOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.menuRow {
+  animation: philosophyMenuItemIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--menu-i, 0) * 28ms + 40ms);
+}
+
+@keyframes philosophyMenuItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chev {
+    transition: none;
+  }
+
+  .menu,
+  .menuClosing,
+  .menuRow,
+  .tagEntering,
+  .tagExiting {
+    animation: none;
+  }
+
+  .trackFill,
+  .thumbCaption,
+  .tick,
+  .range::-webkit-slider-thumb,
+  .range::-moz-range-thumb {
+    transition: none;
+  }
 }
 
 .menuItem {
@@ -342,6 +523,40 @@
   font-weight: 600;
   color: #222;
   line-height: 1.2;
+  transform-origin: center;
+}
+
+.tagEntering {
+  animation: sectorTagIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tagExiting {
+  animation: sectorTagOut 0.18s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes sectorTagIn {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sectorTagOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.82);
+  }
 }
 
 .tagRemove {
