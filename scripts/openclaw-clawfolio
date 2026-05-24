@@ -19,17 +19,28 @@ mkdir -p \
 
 echo "openclaw-clawfolio: OPENAI_API_KEY is $([[ -n "${OPENAI_API_KEY:-}" ]] && echo set || echo unset)"
 
+# Clawfolio uses a dedicated gateway port so we never hit the global ~/.openclaw service on :18789.
+CLAWFOLIO_GATEWAY_PORT="$(python3 - "${OPENCLAW_CONFIG_PATH}" <<'PY' 2>/dev/null || true
+import json, sys
+with open(sys.argv[1]) as f:
+    print(json.load(f).get("gateway", {}).get("port", 18790))
+PY
+)"
+export CLAWFOLIO_GATEWAY_PORT
+if [[ -n "${CLAWFOLIO_GATEWAY_PORT}" ]] && lsof -nP -iTCP:18789 -sTCP:LISTEN >/dev/null 2>&1 && [[ "${CLAWFOLIO_GATEWAY_PORT}" != "18789" ]]; then
+  echo "openclaw-clawfolio: note — global OpenClaw gateway is on :18789; Clawfolio uses :${CLAWFOLIO_GATEWAY_PORT} only." >&2
+fi
+
 # Hard-disable Platform API auth: agent turns use ChatGPT/Codex OAuth only.
 unset OPENAI_API_KEY OPENAI_API_KEYS OPENAI_BASE_URL OPENAI_ORG_ID OPENAI_PROJECT CODEX_API_KEY 2>/dev/null || true
 
 # Never symlink project .env into OPENCLAW_STATE_DIR — OpenClaw loads that file at startup.
 rm -f "${OPENCLAW_STATE_DIR}/.env"
 
-# Drop project-local auth copies that might embed API keys (keep clean symlinks to global OAuth).
+# Drop project-local auth copies that might embed API keys (keep OAuth symlinks only).
 for stale_auth in \
   "${OPENCLAW_STATE_DIR}/auth-profiles.json" \
-  "${OPENCLAW_STATE_DIR}/auth-state.json" \
-  "${OPENCLAW_STATE_DIR}/models.json"; do
+  "${OPENCLAW_STATE_DIR}/auth-state.json"; do
   if [[ -e "${stale_auth}" && ! -L "${stale_auth}" ]]; then
     rm -f "${stale_auth}"
   fi
@@ -57,7 +68,7 @@ if [[ -f "${GLOBAL_AGENT_DIR}/auth-profiles.json" ]]; then
     echo "openclaw-clawfolio: global auth-profiles.json contains API-key profiles; run: openclaw models auth login --provider openai-codex" >&2
     exit 1
   fi
-  for auth_file in auth-profiles.json auth-state.json models.json; do
+  for auth_file in auth-profiles.json auth-state.json; do
     project_file="${PROJECT_AGENT_DIR}/${auth_file}"
     if [[ -e "${project_file}" && ! -L "${project_file}" ]]; then
       rm -f "${project_file}"
@@ -66,6 +77,14 @@ if [[ -f "${GLOBAL_AGENT_DIR}/auth-profiles.json" ]]; then
       ln -sfn "${GLOBAL_AGENT_DIR}/${auth_file}" "${project_file}"
     fi
   done
+  # Codex harness rejects symlinked models.json — keep a real project-local copy.
+  models_file="${PROJECT_AGENT_DIR}/models.json"
+  if [[ -L "${models_file}" ]]; then
+    rm -f "${models_file}"
+  fi
+  if [[ -f "${GLOBAL_AGENT_DIR}/models.json" ]]; then
+    cp -f "${GLOBAL_AGENT_DIR}/models.json" "${models_file}"
+  fi
 fi
 
 cd "${PROJECT_ROOT}"

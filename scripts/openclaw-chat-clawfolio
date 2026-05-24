@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Clawfolio chat: always use the project gateway + state, never the global :18789 service.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WRAPPER="${SCRIPT_DIR}/openclaw-clawfolio"
+
+read_gateway_port() {
+  python3 - "${OPENCLAW_CONFIG_PATH:-}" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    print(json.load(f)["gateway"]["port"])
+PY
+}
+
+export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-$(cd "${SCRIPT_DIR}/.." && pwd)/openclaw/config/openclaw.clawfolio.json}"
+GATEWAY_PORT="$(read_gateway_port)"
+GATEWAY_URL="ws://127.0.0.1:${GATEWAY_PORT}"
+GLOBAL_GATEWAY_PORT=18789
+
+gateway_listening() {
+  lsof -nP -iTCP:"${GATEWAY_PORT}" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+global_gateway_listening() {
+  lsof -nP -iTCP:"${GLOBAL_GATEWAY_PORT}" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+if gateway_listening; then
+  echo "openclaw-chat-clawfolio: using Clawfolio gateway at ${GATEWAY_URL}"
+elif global_gateway_listening && [[ "${GATEWAY_PORT}" != "${GLOBAL_GATEWAY_PORT}" ]]; then
+  echo "openclaw-chat-clawfolio: global OpenClaw gateway is on :${GLOBAL_GATEWAY_PORT}, but Clawfolio uses :${GATEWAY_PORT}." >&2
+  echo "openclaw-chat-clawfolio: starting project gateway (npm run openclaw:gateway in another terminal, or wait)..." >&2
+  "${WRAPPER}" gateway run --force &
+  GATEWAY_PID=$!
+  trap 'kill "${GATEWAY_PID}" 2>/dev/null || true' EXIT
+  for _ in $(seq 1 30); do
+    if gateway_listening; then
+      echo "openclaw-chat-clawfolio: Clawfolio gateway ready on ${GATEWAY_URL}"
+      break
+    fi
+    sleep 0.5
+  done
+  if ! gateway_listening; then
+    echo "openclaw-chat-clawfolio: timed out waiting for Clawfolio gateway on port ${GATEWAY_PORT}" >&2
+    exit 1
+  fi
+else
+  echo "openclaw-chat-clawfolio: starting Clawfolio gateway on ${GATEWAY_URL}..."
+  "${WRAPPER}" gateway run --force &
+  GATEWAY_PID=$!
+  trap 'kill "${GATEWAY_PID}" 2>/dev/null || true' EXIT
+  for _ in $(seq 1 30); do
+    if gateway_listening; then
+      echo "openclaw-chat-clawfolio: Clawfolio gateway ready"
+      break
+    fi
+    sleep 0.5
+  done
+  if ! gateway_listening; then
+    echo "openclaw-chat-clawfolio: timed out waiting for Clawfolio gateway on port ${GATEWAY_PORT}" >&2
+    exit 1
+  fi
+fi
+
+exec "${WRAPPER}" tui "$@"

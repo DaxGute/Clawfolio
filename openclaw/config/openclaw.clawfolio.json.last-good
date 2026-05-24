@@ -7,7 +7,8 @@
           "agentRuntime": {
             "id": "codex"
           }
-        }
+        },
+        "openai/gpt-5.5": {}
       },
       "model": {
         "primary": "codex/gpt-5.5"
@@ -82,8 +83,7 @@
     "profiles": {
       "openai-codex:daxtongute@gmail.com": {
         "provider": "openai-codex",
-        "mode": "oauth",
-        "email": "daxtongute@gmail.com"
+        "mode": "oauth"
       }
     },
     "order": {
@@ -117,6 +117,6 @@
   },
   "meta": {
     "lastTouchedVersion": "2026.5.12",
-    "lastTouchedAt": "2026-05-17T03:14:54.701Z"
+    "lastTouchedAt": "2026-05-24T22:42:33.079Z"
   }
 }
